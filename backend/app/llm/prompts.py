@@ -51,6 +51,8 @@ Rules:
 - A prescribed dose that differs from the standard adult dose is a mismatch unless a passage explicitly permits that dose for a condition the prescription states. A dose that is within the maximum but differs from the standard dose is still a mismatch, with severity moderate; a dose above the maximum is severity high.
 - A duration that exceeds a stated maximum or limit is a mismatch. An open-ended duration is a mismatch only if a passage limits the duration. A reassessment point that equals the prescribed duration is a match.
 - Compare numbers and units exactly. Treat "daily" and "once daily" as equal, "PO" and "orally" as equal.
+- Indication: read the whole Indication passage, including any sentence that begins with "Also used". The prescribed indication is a match if it is consistent with ANY indication or use the passage lists, even when worded differently (for example prophylaxis in patients on multi-drug regimens). It is a mismatch only if the formulary explicitly contraindicates or excludes that use. If the passage neither lists nor excludes it, use not_addressed. An indication mismatch is never higher than moderate severity unless the formulary explicitly forbids that use.
+- When a monograph passage and a summary section state the same rule, cite the monograph passage.
 - severity: high (safety risk or clear violation of a stated limit or constraint), moderate (departs from the standard parameter), low (minor), none (for match and not_addressed).
 - prescribed and reference are short strings of the values compared. Use null when absent.
 - explanation is one or two sentences stating the comparison in plain words.
