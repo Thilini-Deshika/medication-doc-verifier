@@ -56,7 +56,7 @@ The backend is also published on port 8000, where the OpenAPI docs are served at
 
 ## Adding reference documents
 
-The reference is data, not code. Any PDF or DOCX can be a reference.
+The reference is data, not code. Any PDF or DOCX can be a reference, but verification works by matching each prescribed drug to a monograph, so the reference should be organised like a formulary: a bold heading per drug, followed by bold labelled fields such as `Standard adult dose:`. A document without that structure is still chunked, but no monographs are detected, so every medication would be reported as `Unsupported`.
 
 1. Copy the file into `data/references/`. The file name (without extension) becomes the title shown in the UI.
 2. Run `docker compose run --rm seed`. It is idempotent: files are identified by content hash, and an already ingested file is skipped.
@@ -134,7 +134,7 @@ The tests use a deterministic offline embedder and a scripted LLM, so they need 
 
 ```mermaid
 flowchart LR
-  B[Browser<br/>React + react-pdf] -->|HTTPS, cookie auth| N[nginx]
+  B[Browser<br/>React + react-pdf] -->|HTTP or HTTPS, cookie auth| N[nginx]
   N -->|/api| A[FastAPI]
   A -->|insert job, stages, file<br/>one transaction| P[(PostgreSQL + pgvector)]
   A -. LISTEN job_events .-> P
@@ -212,7 +212,7 @@ The LLM compares parameters one by one and returns, for each, `match`, `mismatch
 
 **Optimistic UI.** On upload, the job appears in the list immediately with an "Uploading" state and is rolled back, with the error shown, if the request fails. The jobs list and job detail share one React Query cache that the event stream updates in place.
 
-**Logging.** One JSON line per event with `job_id`, `document_id`, `stage` and worker bound automatically. `grep job_id=<id>` shows a document end to end: stage start and end with durations, LLM calls (latency, token counts, stop reason), the retrieval record per medication (resolution, passage ids, channel, similarity), the verification verdict with per-parameter results, and any rejected citation. Document text is not logged. The same retrieval record is stored on each verification (`verifications.retrieval`).
+**Logging.** One JSON line per event with `job_id`, `document_id`, `stage` and worker bound automatically. `docker compose logs worker | grep <job-id>` shows a document end to end: stage start and end with durations, LLM calls (latency, token counts, stop reason), the retrieval record per medication (resolution, passage ids, channel, similarity), the verification verdict with per-parameter results, and any rejected citation. Document text is not logged. The same retrieval record is stored on each verification (`verifications.retrieval`).
 
 ## Retrieval evaluation
 
@@ -220,7 +220,7 @@ Run on any ingested reference:
 
 ```bash
 docker compose run --rm backend python -m app.cli eval-retrieval
-docker compose run --rm backend python -m app.cli eval-retrieval --gold /path/to/gold.json --k 5
+docker compose run --rm -v /path/to/gold.json:/tmp/gold.json backend python -m app.cli eval-retrieval --gold /tmp/gold.json --k 5
 ```
 
 1. **Monograph routing.** Each monograph name written several realistic ways (case, hyphen, dose and form words) must resolve to its own monograph; invented and one-letter look-alike names must resolve to nothing. Both numbers should be perfect; any look-alike that resolves is a safety bug.
