@@ -1,0 +1,49 @@
+# Production override. Use together with the base file:
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml --env-file .env.prod up -d --build
+# Requires Docker Compose 2.24 or newer (for !reset).
+#
+# Differences from local use:
+#   - TLS and the public listener are handled by Caddy (certificates are issued automatically)
+#   - nothing except Caddy publishes a port
+#   - secrets are mandatory, no development defaults
+#   - the demo user is not created
+#   - services restart automatically
+
+x-prod-env: &prod-env
+  JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to a long random string}
+  DATABASE_URL: postgresql+psycopg://medication_doc_verifier:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/medication_doc_verifier
+  COOKIE_SECURE: "true"
+  SEED_DEMO_USER: "false"
+
+services:
+  db:
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+  backend:
+    restart: unless-stopped
+    ports: !reset []
+    environment: *prod-env
+  worker:
+    environment: *prod-env
+  seed:
+    environment: *prod-env
+  frontend:
+    restart: unless-stopped
+    ports: !reset []
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN to the public host name}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - frontend
+
+volumes:
+  caddy_data:
