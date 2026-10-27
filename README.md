@@ -284,7 +284,14 @@ All settings are environment variables (see `backend/app/config.py`). The ones y
 | `SEED_DEMO_USER` | `true` | Set `false` to skip creating the demo user |
 | `LLM_FACTORY` | unset | `module:function` returning an object with `generate(...)`, to replace the chat client (used by tests) |
 
-## Known limitations and future work
+## Extra credit
+
+Both optional features are implemented.
+
+- **Deep-link citations.** Each flagged issue lists its citations as chips showing page and section path (for example `p.6 III. Sedatives > Examplamide > Prescribing notes`). A chip opens a preview of the cited passage with the quoted text highlighted, and "View in reference document" opens the rendered reference PDF at the cited page with the quote highlighted. The primary document gets the same highlighting from critical points and flags. Highlighting matches the quote against the PDF text layer.
+- **Duplicate upload detection.** An upload whose content hash (SHA-256) matches one the same user made for the same reference within `DUPLICATE_WINDOW_SECONDS` (default 300) returns the existing job with `duplicate: true` and HTTP 200. The window is configuration, concurrent identical uploads are serialised with an advisory lock so only one job is created, and failed jobs are not treated as duplicates.
+
+## Known limitations and what I would do with more time
 
 - **Scanned documents are not supported** (no OCR). Image-only PDFs fail the first stage with a clear message.
 - **Name resolution is exact on purpose.** A brand/generic alias or a misspelling is reported as `Unsupported` with the closest monograph names as suggestions, rather than guessed. An alias table, or an LLM step that proposes an alias for human confirmation, would reduce false `Unsupported` results.
