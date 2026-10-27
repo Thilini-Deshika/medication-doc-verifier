@@ -1,0 +1,80 @@
+# Full stack: Postgres with pgvector, API, worker, one-shot seed job, and the web UI.
+#   docker compose up --build
+# The UI is served at http://localhost:${WEB_PORT:-8080}
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+psycopg://medication_doc_verifier:${POSTGRES_PASSWORD:-medication_doc_verifier}@db:5432/medication_doc_verifier
+  JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-dev-only-change-me}
+  AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:?Set AZURE_OPENAI_ENDPOINT in .env (see .env.example)}
+  AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:?Set AZURE_OPENAI_API_KEY in .env (see .env.example)}
+  AZURE_OPENAI_CHAT_DEPLOYMENT: ${AZURE_OPENAI_CHAT_DEPLOYMENT:-gpt-5.6-terra}
+  AZURE_OPENAI_EMBEDDING_DEPLOYMENT: ${AZURE_OPENAI_EMBEDDING_DEPLOYMENT:-text-embedding-3-small}
+  LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-}
+  DUPLICATE_WINDOW_SECONDS: ${DUPLICATE_WINDOW_SECONDS:-300}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  SEED_DEMO_USER: ${SEED_DEMO_USER:-true}
+  DEMO_EMAIL: ${DEMO_EMAIL:-demo@example.com}
+  DEMO_PASSWORD: ${DEMO_PASSWORD:-demo-password-1}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: medication_doc_verifier
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medication_doc_verifier}
+      POSTGRES_DB: medication_doc_verifier
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medication_doc_verifier -d medication_doc_verifier"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment: *backend-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  worker:
+    build: ./backend
+    command: ["python", "-m", "app.pipeline.worker"]
+    environment: *backend-env
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  seed:
+    build: ./backend
+    command: ["python", "-m", "app.cli", "seed"]
+    environment:
+      <<: *backend-env
+      REFERENCE_DIR: /data/references
+    volumes:
+      - ./data/references:/data/references:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: "no"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
