@@ -96,6 +96,8 @@ npm run dev          # http://localhost:5173
 
 ## Deploying
 
+> Status: these files are validated by `docker compose config` and CI, and the same images run locally with `docker compose up`. The production override itself has not been run on a live server.
+
 `deploy/` holds a production override that adds automatic HTTPS and removes development defaults:
 
 ```bash
